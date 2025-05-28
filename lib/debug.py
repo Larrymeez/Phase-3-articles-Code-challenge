@@ -7,9 +7,9 @@ def interactive():
     print("Welcome to the debug console.")
     print("Try fetching authors, magazines, and articles.")
     
-    a = Author.find_by_name('Donald')
+    a = Author.find_by_name('William')
     if a is None:
-        print("Author 'Donald' not found.")
+        print("Author 'William' not found.")
         return
     
     print(f"Author {a.name} has written these articles:")
