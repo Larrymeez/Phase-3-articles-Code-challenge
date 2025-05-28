@@ -1,4 +1,6 @@
 from lib.db.connection import get_connection
+from lib.models.article import Article
+from lib.models.magazine import Magazine
 
 class Author:
     def __init__(self, name, id=None):
@@ -23,63 +25,75 @@ class Author:
         cursor.execute("SELECT * FROM authors WHERE id = ?", (id,))
         row = cursor.fetchone()
         conn.close()
-        if row:
-            return cls(id=row["id"], name=row["name"])
-        return None
+        return cls(row[1], row[0]) if row else None
+
+    @classmethod
+    def find_by_name(cls, name):
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM authors WHERE name = ?", (name,))
+        row = cursor.fetchone()
+        conn.close()
+        return cls(row[1], row[0]) if row else None
 
     def articles(self):
-        from lib.models.article import Article  # Delayed import to avoid circular dependency
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM articles WHERE author_id = ?", (self.id,))
         rows = cursor.fetchall()
         conn.close()
-        return [Article(id=row["id"], title=row["title"], author_id=row["author_id"], magazine_id=row["magazine_id"]) for row in rows]
+        return [Article(row[1], row[2], row[3], row[0]) for row in rows]
 
     def magazines(self):
-        from lib.models.magazine import Magazine
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT DISTINCT m.* FROM magazines m
-            JOIN articles a ON a.magazine_id = m.id
+            SELECT DISTINCT m.*
+            FROM magazines m
+            JOIN articles a ON m.id = a.magazine_id
             WHERE a.author_id = ?
         """, (self.id,))
         rows = cursor.fetchall()
         conn.close()
-        return [Magazine(id=row["id"], name=row["name"], category=row["category"]) for row in rows]
+        return [Magazine(row[1], row[2], row[0]) for row in rows]
 
-    @classmethod
-    def for_magazine(cls, magazine_id):
+    def add_article(self, magazine, title):
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO articles (title, author_id, magazine_id) VALUES (?, ?, ?)",
+            (title, self.id, magazine.id)
+        )
+        conn.commit()
+        article_id = cursor.lastrowid
+        conn.close()
+        return Article(title, self.id, magazine.id, article_id)
+
+    def topic_areas(self):
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT DISTINCT au.*
-            FROM authors au
-            JOIN articles a ON au.id = a.author_id
-            WHERE a.magazine_id = ?
-        """, (magazine_id,))
+            SELECT DISTINCT m.category
+            FROM magazines m
+            JOIN articles a ON m.id = a.magazine_id
+            WHERE a.author_id = ?
+        """, (self.id,))
         rows = cursor.fetchall()
         conn.close()
-        return [cls(id=row["id"], name=row["name"]) for row in rows]
+        return [row[0] for row in rows]
 
     @classmethod
-    def top_author(cls):
+    def most_prolific(cls):
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT au.*, COUNT(a.id) AS article_count
-            FROM authors au
-            JOIN articles a ON au.id = a.author_id
-            GROUP BY au.id
+            SELECT a.*, COUNT(ar.id) as article_count
+            FROM authors a
+            JOIN articles ar ON a.id = ar.author_id
+            GROUP BY a.id
             ORDER BY article_count DESC
             LIMIT 1
         """)
         row = cursor.fetchone()
         conn.close()
-        if row:
-            return cls(id=row["id"], name=row["name"])
-        return None
-
-    def __repr__(self):
-        return f"<Author id={self.id} name='{self.name}'>"
+        return cls(row[1], row[0]) if row else None

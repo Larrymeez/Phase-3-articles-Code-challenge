@@ -1,20 +1,16 @@
-import sys
 import os
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 from lib.db.connection import get_connection
 
-def setup_db():
-    with open('lib/db/schema.sql') as f:
-        schema_sql = f.read()
-
+def setup_database():
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.executescript(schema_sql)
+    schema_path = os.path.join(os.path.dirname(__file__), '../lib/db/schema.sql')
+    with open(schema_path, 'r') as f:
+        sql_script = f.read()
+    cursor.executescript(sql_script)
     conn.commit()
     conn.close()
-    print("Database setup complete.")
+    print("Database schema created.")
 
 if __name__ == "__main__":
-    setup_db()
+    setup_database()
