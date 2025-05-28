@@ -6,11 +6,20 @@ from lib.models.article import Article
 def interactive():
     print("Welcome to the debug console.")
     print("Try fetching authors, magazines, and articles.")
-    # Simple test interaction:
+    
     a = Author.find_by_name('Donald')
+    if a is None:
+        print("Author 'Donald' not found.")
+        return
+    
     print(f"Author {a.name} has written these articles:")
-    for art in a.articles():
-        print(f" - {art.title}")
+    articles = a.articles()
+    if not articles:
+        print("No articles found for this author.")
+    else:
+        for art in articles:
+            print(f" - {art.title}")
 
 if __name__ == "__main__":
     interactive()
+
